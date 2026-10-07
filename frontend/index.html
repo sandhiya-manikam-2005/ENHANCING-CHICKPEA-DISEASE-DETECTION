@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ChickpeaAI — Disease Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --green-dark: #1a3d2b;
+    --green-mid:  #2d6a4f;
+    --green-lit:  #52b788;
+    --green-pale: #b7e4c7;
+    --cream:      #f8f5ee;
+    --amber:      #e9c46a;
+    --rust:       #c77d3a;
+    --wilt:       #8c6d3f;
+    --blight:     #5c7a4e;
+    --red-err:    #e63946;
+    --text-dark:  #1b2a1e;
+    --text-mid:   #3d5a45;
+    --text-light: #748c7a;
+    --card-bg:    #ffffff;
+    --border:     #d8ead2;
+    --shadow:     rgba(26,61,43,0.10);
+    --radius:     16px;
+    --radius-sm:  8px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--cream);
+    color: var(--text-dark);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ─────────────────────────────────────── */
+  header {
+    background: var(--green-dark);
+    color: #fff;
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    box-shadow: 0 2px 16px rgba(0,0,0,.18);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: .6rem; }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--green-lit);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-size: 1.3rem;
+  }
+  .logo-text { font-size: 1.2rem; font-weight: 700; letter-spacing: -.02em; }
+  .logo-text span { color: var(--green-pale); }
+  .header-badge {
+    font-size: .72rem; font-weight: 600; letter-spacing: .08em;
+    background: rgba(255,255,255,.12);
+    padding: .25rem .8rem; border-radius: 50px;
+    color: var(--green-pale);
+  }
+
+  /* ── Main layout ─────────────────────────────────── */
+  main {
+    flex: 1;
+    max-width: 1100px; margin: 0 auto; width: 100%;
+    padding: 2.5rem 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 1.5rem;
+  }
+
+  .hero {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 1rem 0 .5rem;
+  }
+  .hero h1 {
+    font-size: 2.2rem; font-weight: 700;
+    line-height: 1.15;
+    color: var(--green-dark);
+    margin-bottom: .5rem;
+  }
+  .hero h1 em { font-style: normal; color: var(--green-mid); }
+  .hero p {
+    color: var(--text-mid); font-size: .95rem; max-width: 560px; margin: 0 auto;
+  }
+
+  /* ── Card ────────────────────────────────────────── */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.75rem;
+    box-shadow: 0 2px 12px var(--shadow);
+    display: flex; flex-direction: column; gap: 1.25rem;
+  }
+  .card-title {
+    font-size: .8rem; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-light);
+    margin-bottom: -.5rem;
+  }
+
+  /* ── Upload zone ─────────────────────────────────── */
+  #drop-zone {
+    border: 2.5px dashed var(--green-lit);
+    border-radius: var(--radius);
+    background: rgba(82,183,136,.05);
+    min-height: 230px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: .75rem;
+    cursor: pointer; transition: all .2s;
+    position: relative; overflow: hidden;
+  }
+  #drop-zone:hover, #drop-zone.drag-over {
+    background: rgba(82,183,136,.12);
+    border-color: var(--green-mid);
+    transform: scale(1.01);
+  }
+  #drop-zone.has-image { border-style: solid; border-color: var(--green-mid); }
+  .dz-icon { font-size: 2.8rem; }
+  .dz-label { font-weight: 600; color: var(--green-mid); font-size: 1rem; }
+  .dz-hint  { font-size: .8rem; color: var(--text-light); }
+  #preview-img {
+    width: 100%; height: 230px;
+    object-fit: cover; border-radius: 12px;
+    display: none;
+  }
+  #file-input { display: none; }
+  .btn-change {
+    position: absolute; bottom: .75rem; right: .75rem;
+    background: var(--green-dark); color: #fff;
+    border: none; border-radius: 6px;
+    padding: .35rem .85rem; font-size: .8rem; font-family: inherit;
+    cursor: pointer; display: none; font-weight: 600;
+  }
+
+  /* ── Buttons ─────────────────────────────────────── */
+  .btn-primary {
+    background: var(--green-mid);
+    color: #fff; border: none;
+    border-radius: var(--radius-sm);
+    padding: .9rem 1.5rem; font-size: 1rem;
+    font-family: inherit; font-weight: 600;
+    cursor: pointer; transition: all .2s;
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    width: 100%;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--green-dark); transform: translateY(-1px);
+  }
+  .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+
+  /* ── Preprocessing preview ───────────────────────── */
+  .preproc-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  }
+  .preproc-item { text-align: center; }
+  .preproc-label {
+    font-size: .72rem; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text-light); margin-bottom: .4rem;
+  }
+  .preproc-item img {
+    width: 100%; border-radius: 10px;
+    border: 1px solid var(--border); object-fit: cover; height: 130px;
+  }
+
+  /* ── Results card ────────────────────────────────── */
+  #result-card { display: none; }
+
+  .result-header {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1rem; border-radius: 12px;
+  }
+  .result-icon { font-size: 2.5rem; }
+  .result-label { font-size: 1.6rem; font-weight: 700; }
+  .result-confidence { font-size: .9rem; color: var(--text-mid); }
+
+  /* Disease-specific colors */
+  .cls-Healthy  { background: rgba(82,183,136,.12); }
+  .cls-Blight   { background: rgba(92,122,78,.12);  }
+  .cls-Rust     { background: rgba(199,125,58,.12);  }
+  .cls-Wilt     { background: rgba(140,109,63,.12);  }
+
+  /* ── Probability bars ────────────────────────────── */
+  .prob-list { display: flex; flex-direction: column; gap: .6rem; }
+  .prob-item { display: flex; flex-direction: column; gap: .25rem; }
+  .prob-top  { display: flex; justify-content: space-between; align-items: center; }
+  .prob-name { font-size: .85rem; font-weight: 600; color: var(--text-dark); }
+  .prob-pct  { font-size: .82rem; font-family: 'DM Mono', monospace; color: var(--text-mid); }
+  .prob-bar-bg { height: 8px; background: var(--border); border-radius: 50px; overflow: hidden; }
+  .prob-bar-fill {
+    height: 100%; border-radius: 50px;
+    background: var(--green-lit);
+    transition: width .6s cubic-bezier(.4,0,.2,1);
+  }
+  .prob-bar-fill.cls-Rust   { background: var(--rust); }
+  .prob-bar-fill.cls-Wilt   { background: var(--wilt); }
+  .prob-bar-fill.cls-Blight { background: var(--blight); }
+
+  /* ── Treatments ──────────────────────────────────── */
+  .treatments { display: flex; flex-direction: column; gap: .5rem; }
+  .treatment-item {
+    display: flex; gap: .6rem; align-items: flex-start;
+    padding: .55rem .75rem;
+    background: rgba(82,183,136,.07); border-radius: 8px;
+    font-size: .88rem; color: var(--text-dark); line-height: 1.4;
+  }
+  .treatment-item::before { content: "🌿"; flex-shrink: 0; }
+
+  /* ── Loading spinner ─────────────────────────────── */
+  #loading { display: none; align-items: center; gap: .75rem; color: var(--text-mid); }
+  .spinner {
+    width: 22px; height: 22px;
+    border: 3px solid var(--border);
+    border-top-color: var(--green-mid);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Inference meta ──────────────────────────────── */
+  .meta-row {
+    display: flex; gap: 1.25rem; flex-wrap: wrap;
+    padding-top: .75rem; border-top: 1px solid var(--border);
+  }
+  .meta-item {
+    font-size: .78rem; font-family: 'DM Mono', monospace;
+    color: var(--text-light);
+  }
+  .meta-item strong { color: var(--text-mid); }
+
+  /* ── Error banner ────────────────────────────────── */
+  #error-banner {
+    display: none;
+    background: rgba(230,57,70,.09);
+    border: 1px solid rgba(230,57,70,.3);
+    border-radius: var(--radius-sm);
+    padding: .75rem 1rem;
+    font-size: .88rem; color: var(--red-err);
+  }
+
+  /* ── Info strip ──────────────────────────────────── */
+  .info-strip {
+    grid-column: 1 / -1;
+    display: flex; gap: .75rem; flex-wrap: wrap;
+  }
+  .info-chip {
+    flex: 1; min-width: 180px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    display: flex; align-items: center; gap: .75rem;
+  }
+  .chip-icon { font-size: 1.6rem; }
+  .chip-text h4 { font-size: .88rem; font-weight: 600; color: var(--text-dark); }
+  .chip-text p  { font-size: .78rem; color: var(--text-light); }
+
+  /* ── Footer ──────────────────────────────────────── */
+  footer {
+    text-align: center; padding: 1.5rem;
+    font-size: .8rem; color: var(--text-light);
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 720px) {
+    main { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🌱</div>
+    <div class="logo-text">Chickpea<span>AI</span></div>
+  </div>
+  <div class="header-badge">Hybrid CNN–RNN Model</div>
+</header>
+
+<main>
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Chickpea <em>Disease Detection</em><br>with Deep Learning</h1>
+    <p>Upload a chickpea leaf image and get instant AI-powered disease identification with treatment recommendations.</p>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="card">
+    <div class="card-title">Upload Leaf Image</div>
+
+    <div id="drop-zone" onclick="document.getElementById('file-input').click()"
+         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+      <img id="preview-img" src="" alt="Preview"/>
+      <span class="dz-icon" id="dz-icon">📷</span>
+      <span class="dz-label" id="dz-label">Drop image or click to upload</span>
+      <span class="dz-hint" id="dz-hint">PNG, JPG, JPEG, BMP, WEBP</span>
+      <button class="btn-change" id="btn-change" onclick="clearImage(event)">Change</button>
+    </div>
+    <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)"/>
+
+    <div id="error-banner"></div>
+
+    <div id="loading">
+      <div class="spinner"></div>
+      <span>Analysing image…</span>
+    </div>
+
+    <button class="btn-primary" id="predict-btn" onclick="runPrediction()" disabled>
+      🔬 Detect Disease
+    </button>
+
+    <!-- Preprocessing preview (shown after prediction) -->
+    <div id="preproc-section" style="display:none">
+      <div class="card-title" style="margin-bottom:.6rem">Preprocessing Pipeline</div>
+      <div class="preproc-row">
+        <div class="preproc-item">
+          <div class="preproc-label">Original</div>
+          <img id="img-original" src="" alt="Original"/>
+        </div>
+        <div class="preproc-item">
+          <div class="preproc-label">Processed</div>
+          <img id="img-processed" src="" alt="Preprocessed"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Card -->
+  <div class="card" id="result-card">
+    <div class="card-title">Detection Result</div>
+
+    <div class="result-header" id="result-header">
+      <div class="result-icon" id="result-icon">🌿</div>
+      <div>
+        <div class="result-label" id="result-label">—</div>
+        <div class="result-confidence" id="result-confidence"></div>
+      </div>
+    </div>
+
+    <p id="result-desc" style="font-size:.88rem; color:var(--text-mid); line-height:1.5"></p>
+
+    <div>
+      <div class="card-title" style="margin-bottom:.75rem">Class Probabilities</div>
+      <div class="prob-list" id="prob-list"></div>
+    </div>
+
+    <div>
+      <div class="card-title" style="margin-bottom:.75rem">Recommended Treatments</div>
+      <div class="treatments" id="treatments"></div>
+    </div>
+
+    <div class="meta-row" id="meta-row"></div>
+  </div>
+
+  <!-- Info chips -->
+  <div class="info-strip">
+    <div class="info-chip">
+      <div class="chip-icon">🧠</div>
+      <div class="chip-text">
+        <h4>Hybrid CNN–RNN</h4>
+        <p>Combines spatial and sequential feature learning</p>
+      </div>
+    </div>
+    <div class="info-chip">
+      <div class="chip-icon">🔬</div>
+      <div class="chip-text">
+        <h4>4 Disease Classes</h4>
+        <p>Healthy · Blight · Rust · Wilt</p>
+      </div>
+    </div>
+    <div class="info-chip">
+      <div class="chip-icon">⚡</div>
+      <div class="chip-text">
+        <h4>Real-time Detection</h4>
+        <p>Instant prediction with treatment advice</p>
+      </div>
+    </div>
+    <div class="info-chip">
+      <div class="chip-icon">🌾</div>
+      <div class="chip-text">
+        <h4>Smart Agriculture</h4>
+        <p>AI-powered crop health monitoring</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  ChickpeaAI — Final Year Project &nbsp;|&nbsp; Hybrid CNN-RNN Disease Detection &nbsp;|&nbsp;
+  Jai Shriram Engineering College, Tirupur
+</footer>
+
+<script>
+const API = 'http://localhost:5000';
+
+let selectedFile = null;
+
+// ── Drag & Drop ────────────────────────────────────────────────────────
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.add('drag-over');
+}
+function handleDragLeave(e) {
+  document.getElementById('drop-zone').classList.remove('drag-over');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadFile(file);
+}
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) loadFile(file);
+}
+
+function loadFile(file) {
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const prev = document.getElementById('preview-img');
+    prev.src = ev.target.result;
+    prev.style.display = 'block';
+    document.getElementById('dz-icon').style.display  = 'none';
+    document.getElementById('dz-label').style.display = 'none';
+    document.getElementById('dz-hint').style.display  = 'none';
+    document.getElementById('btn-change').style.display = 'block';
+    document.getElementById('drop-zone').classList.add('has-image');
+    document.getElementById('predict-btn').disabled = false;
+    hideError();
+    hideResults();
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage(e) {
+  e.stopPropagation();
+  selectedFile = null;
+  document.getElementById('preview-img').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  document.getElementById('dz-icon').style.display  = '';
+  document.getElementById('dz-label').style.display = '';
+  document.getElementById('dz-hint').style.display  = '';
+  document.getElementById('btn-change').style.display = 'none';
+  document.getElementById('drop-zone').classList.remove('has-image');
+  document.getElementById('predict-btn').disabled = true;
+  hideResults();
+  hideError();
+}
+
+// ── Prediction ────────────────────────────────────────────────────────
+async function runPrediction() {
+  if (!selectedFile) return;
+  showLoading(true);
+  hideError();
+  hideResults();
+
+  const form = new FormData();
+  form.append('image', selectedFile);
+
+  try {
+    const res  = await fetch(`${API}/predict`, { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Prediction failed');
+    showResults(data);
+  } catch (err) {
+    showError(err.message.includes('fetch')
+      ? 'Cannot reach server. Is the Flask API running on port 5000?'
+      : err.message);
+  } finally {
+    showLoading(false);
+  }
+}
+
+// ── Display helpers ───────────────────────────────────────────────────
+const ICONS = { Healthy: '🌿', Blight: '🍂', Rust: '🟠', Wilt: '🥀' };
+
+function showResults(data) {
+  const cls = data.prediction;
+
+  // Header
+  const hdr = document.getElementById('result-header');
+  hdr.className = `result-header cls-${cls}`;
+  document.getElementById('result-icon').textContent = ICONS[cls] || '🌱';
+  document.getElementById('result-label').textContent = cls;
+  document.getElementById('result-confidence').textContent =
+    `Confidence: ${data.confidence}%  ·  ${data.inference_ms} ms`;
+  document.getElementById('result-desc').textContent = data.description;
+
+  // Probability bars
+  const probList = document.getElementById('prob-list');
+  probList.innerHTML = '';
+  const sorted = Object.entries(data.all_probs).sort((a,b) => b[1]-a[1]);
+  sorted.forEach(([name, pct]) => {
+    probList.innerHTML += `
+      <div class="prob-item">
+        <div class="prob-top">
+          <span class="prob-name">${ICONS[name]||'•'} ${name}</span>
+          <span class="prob-pct">${pct.toFixed(1)}%</span>
+        </div>
+        <div class="prob-bar-bg">
+          <div class="prob-bar-fill cls-${name}" style="width:${pct}%"></div>
+        </div>
+      </div>`;
+  });
+
+  // Treatments
+  const tDiv = document.getElementById('treatments');
+  tDiv.innerHTML = data.treatments.map(t =>
+    `<div class="treatment-item">${t}</div>`).join('');
+
+  // Preprocessed images
+  if (data.preprocessed) {
+    document.getElementById('img-original').src =
+      URL.createObjectURL(selectedFile);
+    document.getElementById('img-processed').src =
+      `data:image/png;base64,${data.preprocessed}`;
+    document.getElementById('preproc-section').style.display = 'block';
+  }
+
+  // Meta
+  document.getElementById('meta-row').innerHTML = `
+    <div class="meta-item">⏱ <strong>${data.inference_ms} ms</strong></div>
+    <div class="meta-item">📊 Model: <strong>Hybrid CNN–RNN</strong></div>
+    <div class="meta-item">🔢 Classes: <strong>4</strong></div>`;
+
+  document.getElementById('result-card').style.display = 'flex';
+  document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function hideResults() {
+  document.getElementById('result-card').style.display = 'none';
+  document.getElementById('preproc-section').style.display = 'none';
+}
+
+function showLoading(on) {
+  document.getElementById('loading').style.display = on ? 'flex' : 'none';
+  document.getElementById('predict-btn').disabled   = on;
+}
+
+function showError(msg) {
+  const b = document.getElementById('error-banner');
+  b.textContent = `⚠ ${msg}`;
+  b.style.display = 'block';
+}
+function hideError() {
+  document.getElementById('error-banner').style.display = 'none';
+}
+</script>
+</body>
+</html>
